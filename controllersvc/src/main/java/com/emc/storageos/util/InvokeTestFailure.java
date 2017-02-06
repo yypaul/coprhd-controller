@@ -274,11 +274,11 @@ public final class InvokeTestFailure {
             if (!logFile.exists()) {
                 logFile.createNewFile();
             }
-            fop = new FileOutputStream(logFile, true);
-            fop.flush();
+            fop = new FileOutputStream(logFile, true);            
             StringBuffer sb = new StringBuffer(msg + "\n");
             // Last chance, if file is deleted, write manually.
             fop.write(sb.toString().getBytes());
+            fop.flush();
         } catch (IOException e) {
             // It's OK if we can't log this.
         } finally {

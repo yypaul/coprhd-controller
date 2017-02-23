@@ -104,6 +104,7 @@ BOURNE_IP=${BOURNE_IP:-"localhost"}
 #
 NH=nh
 NH2=nh2
+NH3=nh3
 # By default, we'll use this network.  Some arrays may use another and redefine it in their setup
 FC_ZONE_A=FABRIC_losam082-fabric
 
@@ -544,36 +545,49 @@ vplex_sim_setup() {
     secho "Setting up the virtual arrays nh and nh2"
     VPLEX_VARRAY1=$NH
     VPLEX_VARRAY2=$NH2
+    VPLEX_VARRAY3=$NH3
     FC_ZONE_A=${CLUSTER1NET_NAME}
     FC_ZONE_B=${CLUSTER2NET_NAME}
     run neighborhood create $VPLEX_VARRAY1
+    run neighborhood allow $VPLEX_VARRAY1 $TENANT
     run transportzone assign $FC_ZONE_A $VPLEX_VARRAY1
-    run transportzone create $FC_ZONE_A $VPLEX_VARRAY1 --type FC
-    secho "Setting up the VPLEX cluster-2 virtual array $VPLEX_VARRAY2"
+    run transportzone create $FC_ZONE_A $VPLEX_VARRAY1 --type FC        
     run neighborhood create $VPLEX_VARRAY2
+    run neighborhood allow $VPLEX_VARRAY2 $TENANT
     run transportzone assign $FC_ZONE_B $VPLEX_VARRAY2
-    run transportzone create $FC_ZONE_B $VPLEX_VARRAY2 --type FC
+    run transportzone create $FC_ZONE_B $VPLEX_VARRAY2 --type FC   
+    run neighborhood create $VPLEX_VARRAY3
+    run neighborhood allow $VPLEX_VARRAY3 $TENANT
+    run transportzone assign $FC_ZONE_B $VPLEX_VARRAY3
+    run transportzone create $FC_ZONE_B $VPLEX_VARRAY3 --type FC
     # Assign both networks to both transport zones
     run transportzone assign $FC_ZONE_A $VPLEX_VARRAY2
     run transportzone assign $FC_ZONE_B $VPLEX_VARRAY1
 
     secho "Setting up the VPLEX cluster-1 virtual array $VPLEX_VARRAY1"
-    run storageport update $VPLEX_GUID FC --group director-1-1-A --addvarrays $NH
-    run storageport update $VPLEX_GUID FC --group director-1-1-B --addvarrays $NH
+    run storageport update $VPLEX_GUID FC --group director-1-1-A --addvarrays $VPLEX_VARRAY1
+    run storageport update $VPLEX_GUID FC --group director-1-1-B --addvarrays $VPLEX_VARRAY1
     run storageport update $VPLEX_GUID FC --group director-1-2-A --addvarrays $VPLEX_VARRAY1
     run storageport update $VPLEX_GUID FC --group director-1-2-B --addvarrays $VPLEX_VARRAY1
     # The arrays are assigned to individual varrays as well.
-    run storageport update $VPLEX_SIM_VMAX1_NATIVEGUID FC --addvarrays $NH
-    run storageport update $VPLEX_SIM_VMAX2_NATIVEGUID FC --addvarrays $NH
-    run storageport update $VPLEX_SIM_VMAX3_NATIVEGUID FC --addvarrays $NH
-
+    run storageport update $VPLEX_SIM_VMAX1_NATIVEGUID FC --addvarrays $VPLEX_VARRAY1
+    run storageport update $VPLEX_SIM_VMAX2_NATIVEGUID FC --addvarrays $VPLEX_VARRAY1
+    
+    secho "Setting up the VPLEX cluster-2 virtual array $VPLEX_VARRAY2"
     run storageport update $VPLEX_GUID FC --group director-2-1-A --addvarrays $VPLEX_VARRAY2
     run storageport update $VPLEX_GUID FC --group director-2-1-B --addvarrays $VPLEX_VARRAY2
     run storageport update $VPLEX_GUID FC --group director-2-2-A --addvarrays $VPLEX_VARRAY2
     run storageport update $VPLEX_GUID FC --group director-2-2-B --addvarrays $VPLEX_VARRAY2
-    run storageport update $VPLEX_SIM_VMAX4_NATIVEGUID FC --addvarrays $NH2
-    run storageport update $VPLEX_SIM_VMAX5_NATIVEGUID FC --addvarrays $NH2
+    run storageport update $VPLEX_SIM_VMAX4_NATIVEGUID FC --addvarrays $VPLEX_VARRAY2
+    run storageport update $VPLEX_SIM_VMAX5_NATIVEGUID FC --addvarrays $VPLEX_VARRAY2
     #run storageport update $VPLEX_VMAX_NATIVEGUID FC --addvarrays $VPLEX_VARRAY2
+
+    secho "Setting up another VPLEX cluster-1 virtual array $VPLEX_VARRAY3"
+    run storageport update $VPLEX_GUID FC --group director-1-1-A --addvarrays $VPLEX_VARRAY3
+    run storageport update $VPLEX_GUID FC --group director-1-1-B --addvarrays $VPLEX_VARRAY3
+    run storageport update $VPLEX_GUID FC --group director-1-2-A --addvarrays $VPLEX_VARRAY3
+    run storageport update $VPLEX_GUID FC --group director-1-2-B --addvarrays $VPLEX_VARRAY3
+    run storageport update $VPLEX_SIM_VMAX3_NATIVEGUID FC --addvarrays $VPLEX_VARRAY3
 
     common_setup
 
@@ -589,7 +603,7 @@ vplex_sim_setup() {
                              --provisionType 'Thin'                             \
                              --highavailability vplex_local                     \
                              --neighborhoods $VPLEX_VARRAY1                     \
-		             --multiVolumeConsistency \
+		                     --multiVolumeConsistency \
                              --max_snapshots 1                                  \
                              --max_mirrors 0                                    \
                              --expandable true 
@@ -604,14 +618,14 @@ vplex_sim_setup() {
                              --provisionType 'Thin'                             \
                              --highavailability vplex_local                     \
                              --neighborhoods $VPLEX_VARRAY1                     \
-		             --multiVolumeConsistency \
+		                     --multiVolumeConsistency \
                              --max_snapshots 1                                  \
                              --max_mirrors 0                                    \
                              --expandable true 
 
             run cos update block $VPOOL_CHANGE --storage $VPLEX_SIM_VMAX2_NATIVEGUID
 
-	    # Migration vpool test
+	        # Migration vpool test
             secho "Setting up the virtual pool for local VPLEX provisioning and migration (source)"
             run cos create block ${VPOOL_BASE}_migration_src false                            \
                              --description 'vpool-for-vplex-local-volumes-src'      \
@@ -619,15 +633,15 @@ vplex_sim_setup() {
                              --numpaths 2                                       \
                              --provisionType 'Thin'                             \
                              --highavailability vplex_local                     \
-                             --neighborhoods $VPLEX_VARRAY1                     \
-		             --multiVolumeConsistency \
+                             --neighborhoods $VPLEX_VARRAY1 $VPLEX_VARRAY2      \
+		                     --multiVolumeConsistency \
                              --max_snapshots 1                                  \
                              --max_mirrors 0                                    \
                              --expandable true 
 
             run cos update block ${VPOOL_BASE}_migration_src --storage $VPLEX_SIM_VMAX1_NATIVEGUID
 
-	    # Migration vpool test
+	        # Migration vpool test
             secho "Setting up the virtual pool for local VPLEX provisioning and migration (target)"
             run cos create block ${VPOOL_BASE}_migration_tgt false                           \
                              --description 'vpool-for-vplex-local-volumes-tgt'      \
@@ -635,13 +649,29 @@ vplex_sim_setup() {
                              --numpaths 2                                       \
                              --provisionType 'Thin'                             \
                              --highavailability vplex_local                     \
-                             --neighborhoods $VPLEX_VARRAY1                     \
-		             --multiVolumeConsistency \
+                             --neighborhoods $VPLEX_VARRAY1 $VPLEX_VARRAY2      \
+		                     --multiVolumeConsistency \
                              --max_snapshots 1                                  \
                              --max_mirrors 0                                    \
                              --expandable true 
 
             run cos update block ${VPOOL_BASE}_migration_tgt --storage $VPLEX_SIM_VMAX2_NATIVEGUID
+            
+            # varray3 vpool
+            secho "Setting up the virtual pool for local VPLEX provisioning for varray3"
+            run cos create block ${VPOOL_BASE}_varray3 true                           \
+                             --description 'vpool-for-vplex-local-volumes-varray3'      \
+                             --protocols FC                                     \
+                             --numpaths 2                                       \
+                             --provisionType 'Thin'                             \
+                             --highavailability vplex_local                     \
+                             --neighborhoods $VPLEX_VARRAY3      \
+                             --multiVolumeConsistency \
+                             --max_snapshots 1                                  \
+                             --max_mirrors 0                                    \
+                             --expandable true 
+
+            run cos update block ${VPOOL_BASE}_varray3 --storage $VPLEX_SIM_VMAX2_NATIVEGUID
         ;;
         distributed)
             secho "Setting up the virtual pool for distributed VPLEX provisioning"
@@ -650,7 +680,7 @@ vplex_sim_setup() {
                              --protocols FC                                         \
                              --numpaths 2                                           \
                              --provisionType 'Thin'                                 \
-		             --multiVolumeConsistency \
+		                     --multiVolumeConsistency \
                              --highavailability vplex_distributed                   \
                              --neighborhoods $VPLEX_VARRAY1 $VPLEX_VARRAY2          \
                              --haNeighborhood $VPLEX_VARRAY2                        \
@@ -667,7 +697,7 @@ vplex_sim_setup() {
                              --protocols FC                                         \
                              --numpaths 4                                           \
                              --provisionType 'Thin'                                 \
-		             --multiVolumeConsistency \
+		                     --multiVolumeConsistency \
                              --highavailability vplex_distributed                   \
                              --neighborhoods $VPLEX_VARRAY1 $VPLEX_VARRAY2          \
                              --haNeighborhood $VPLEX_VARRAY2                        \
@@ -1204,9 +1234,9 @@ test_1() {
     storage_failure_injections=""
     if [ "${SS}" = "vplex" ]
     then
-	# Would love to have injections in the vplex package itself somehow, but hard to do since I stuck InvokeTestFailure in controller,
-	# which depends on vplex project, not the other way around.
-	storage_failure_injections="failure_004:failure_043_VPlexVmaxMaskingOrchestrator.deleteOrRemoveVolumesToExportMask_before_operation \
+	   # Would love to have injections in the vplex package itself somehow, but hard to do since I stuck InvokeTestFailure in controller,
+	   # which depends on vplex project, not the other way around.
+	   storage_failure_injections="failure_004:failure_043_VPlexVmaxMaskingOrchestrator.deleteOrRemoveVolumesToExportMask_before_operation \
                                     failure_004:failure_044_VPlexVmaxMaskingOrchestrator.deleteOrRemoveVolumesToExportMask_after_operation \
                                     failure_015_SmisCommandHelper.invokeMethod_EMCCreateMultipleTypeElementsFromStoragePool \
                                     failure_015_SmisCommandHelper.invokeMethod_AddMembers \
@@ -1219,22 +1249,22 @@ test_1() {
 
     if [ "${SS}" = "vmax3" -o "${SS}" = "vmax2" ]
     then
-	storage_failure_injections="failure_004:failure_015_SmisCommandHelper.invokeMethod_ReturnElementsToStoragePool \
-	                            failure_015_SmisCommandHelper.invokeMethod_EMCCreateMultipleTypeElementsFromStoragePool \
+	   storage_failure_injections="failure_004:failure_015_SmisCommandHelper.invokeMethod_ReturnElementsToStoragePool \
+	                                failure_015_SmisCommandHelper.invokeMethod_EMCCreateMultipleTypeElementsFromStoragePool \
                                     failure_011_VNXVMAX_Post_Placement_outside_trycatch \
                                     failure_012_VNXVMAX_Post_Placement_inside_trycatch"
     fi
 
     if [ "${SS}" = "vnx" ]
     then
-	storage_failure_injections="failure_015_SmisCommandHelper.invokeMethod_CreateOrModifyElementFromStoragePool \
+	   storage_failure_injections="failure_015_SmisCommandHelper.invokeMethod_CreateOrModifyElementFromStoragePool \
                                     failure_011_VNXVMAX_Post_Placement_outside_trycatch \
                                     failure_012_VNXVMAX_Post_Placement_inside_trycatch"
     fi
 
     if [ "${SS}" = "xio" ]
     then
-	storage_failure_injections="failure_004:failure_040_XtremIOStorageDeviceController.doDeleteVolume_before_delete_volume \
+	   storage_failure_injections="failure_004:failure_040_XtremIOStorageDeviceController.doDeleteVolume_before_delete_volume \
                                     failure_004:failure_041_XtremIOStorageDeviceController.doDeleteVolume_after_delete_volume"
     fi
 
@@ -1245,81 +1275,81 @@ test_1() {
 
     if [ "${SS}" = "vplex" ]
     then
-	cfs=("Volume ExportGroup ExportMask FCZoneReference")
+	   cfs=("Volume ExportGroup ExportMask FCZoneReference")
     else
-	cfs=("Volume")
+	   cfs=("Volume")
     fi
 
     for failure in ${failure_injections}
     do
-      item=${RANDOM}
-      TEST_OUTPUT_FILE=test_output_${item}.log
-      secho "Running Test 1 with failure scenario: ${failure}..."
-      reset_counts
-      mkdir -p results/${item}
-      volname=${VOLNAME}-${item}
+        item=${RANDOM}
+        TEST_OUTPUT_FILE=test_output_${item}.log
+        secho "Running Test 1 with failure scenario: ${failure}..."
+        reset_counts
+        mkdir -p results/${item}
+        volname=${VOLNAME}-${item}
       
-      # Turn on failure at a specific point
-      set_artificial_failure ${failure}
+        # Turn on failure at a specific point
+        set_artificial_failure ${failure}
 
-      # Check the state of the volume that doesn't exist
-      snap_db 1 "${cfs[@]}"
+        # Check the state of the volume that doesn't exist
+        snap_db 1 "${cfs[@]}"
 
-      #For XIO, before failure 6 is invoked the task would have completed successfully
-      if [ "${SS}" = "xio" -a "${failure}" = "failure_006_BlockDeviceController.createVolumes_after_device_create" ]
-      then
-	  runcmd volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
-	  # Remove the volume
-      	  runcmd volume delete ${PROJECT}/${volname} --wait
-      else
-	  # If this is a rollback inject, make sure we get the "additional message"
-	  echo ${failure} | grep failure_004 | grep ":" > /dev/null
+        #For XIO, before failure 6 is invoked the task would have completed successfully
+        if [ "${SS}" = "xio" -a "${failure}" = "failure_006_BlockDeviceController.createVolumes_after_device_create" ]
+        then
+            runcmd volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
+            # Remove the volume
+            runcmd volume delete ${PROJECT}/${volname} --wait
+        else
+            # If this is a rollback inject, make sure we get the "additional message"
+            echo ${failure} | grep failure_004 | grep ":" > /dev/null
 
-	  if [ $? -eq 0 ]
-	  then
-	      # Make sure it fails with additional errors accounted for in the error message
-      	      fail -with_error "Additional errors occurred" volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
-	  else
-      	      # Create the volume
-      	      fail volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
-	  fi
+            if [ $? -eq 0 ]
+            then
+                # Make sure it fails with additional errors accounted for in the error message
+                fail -with_error "Additional errors occurred" volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
+            else
+                # Create the volume
+                fail volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
+            fi
 
-	  # Verify injected failures were hit
-	  verify_failures ${failure}
+            # Verify injected failures were hit
+            verify_failures ${failure}
 
-      	  # Let the async jobs calm down
-      	  sleep 5
-      fi
+            # Let the async jobs calm down
+            sleep 5
+        fi
 
-      # Perform any DB validation in here
-      snap_db 2 "${cfs[@]}" 
+        # Perform any DB validation in here
+        snap_db 2 "${cfs[@]}" 
 
-      # Validate nothing was left behind
-      validate_db 1 2 "${cfs[@]}"
+        # Validate nothing was left behind
+        validate_db 1 2 "${cfs[@]}"
 
-      # Rerun the command
-      set_artificial_failure none
+        # Rerun the command
+        set_artificial_failure none
 
-      # Determine if re-running the command under certain failure scenario's is expected to fail (like Unity) or succeed.
-      if [ "${SS}" = "unity" ] && [ "${failure}" = "failure_004:failure_013_BlockDeviceController.rollbackCreateVolumes_before_device_delete"  -o "${failure}" = "failure_006_BlockDeviceController.createVolumes_after_device_create" ]
-      then
-          # Unity is expected to fail because the array doesn't like duplicate LUN names
-          fail -with_error "LUN with this name already exists" volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
-          # TODO Delete the original volume
-      else
-          runcmd volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
-          # Remove the volume
-          runcmd volume delete ${PROJECT}/${volname} --wait
-      fi
+        # Determine if re-running the command under certain failure scenario's is expected to fail (like Unity) or succeed.
+        if [ "${SS}" = "unity" ] && [ "${failure}" = "failure_004:failure_013_BlockDeviceController.rollbackCreateVolumes_before_device_delete"  -o "${failure}" = "failure_006_BlockDeviceController.createVolumes_after_device_create" ]
+        then
+            # Unity is expected to fail because the array doesn't like duplicate LUN names
+            fail -with_error "LUN with this name already exists" volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
+            # TODO Delete the original volume
+        else
+            runcmd volume create ${volname} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
+            # Remove the volume
+            runcmd volume delete ${PROJECT}/${volname} --wait
+        fi
 
-      # Perform any DB validation in here
-      snap_db 3 "${cfs[@]}"
+        # Perform any DB validation in here
+        snap_db 3 "${cfs[@]}"
 
-      # Validate nothing was left behind
-      validate_db 2 3 ${cfs}
+        # Validate nothing was left behind
+        validate_db 2 3 ${cfs}
 
-      # Report results
-      report_results test_1 ${failure}
+        # Report results
+        report_results test_1 ${failure}
     done
 }
 

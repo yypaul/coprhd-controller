@@ -1490,7 +1490,7 @@ public class VPlexDeviceController extends AbstractBasicMaskingOrchestrator
      * A workflow step that marks Volumes inactive after all the delete volume
      * workflow steps have completed.
      *
-     c* @param volumes
+     * @param volumes
      *            -- List<URI> of volumes
      * @param stepId
      *            -- Workflow Step Id.
@@ -2200,7 +2200,6 @@ public class VPlexDeviceController extends AbstractBasicMaskingOrchestrator
                     exportMasksToUpdateOnDeviceWithInitiators,
                     exportMasksToUpdateOnDeviceWithStoragePorts,
                     storageViewStepId, exportMask, shared);
-
         }
 
         long elapsed = new Date().getTime() - startAssembly;
@@ -2805,6 +2804,7 @@ public class VPlexDeviceController extends AbstractBasicMaskingOrchestrator
                     storageViewStepId, vplexSystem.getId(), vplexSystem.getSystemType(),
                     this.getClass(), addPortsToViewMethod, addToViewRollbackMethod, addPortStep);
         }
+        
         return storageViewStepId;
     }
 
@@ -4458,6 +4458,9 @@ public class VPlexDeviceController extends AbstractBasicMaskingOrchestrator
                     }
                 }
             }
+            
+            InvokeTestFailure.internalOnlyInvokeTestFailure(InvokeTestFailure.ARTIFICIAL_FAILURE_003);
+            
             completer.ready(_dbClient);
         } catch (VPlexApiException vae) {
             _log.error("VPlexApiException adding storagePorts to Storage View: " + vae.getMessage(), vae);

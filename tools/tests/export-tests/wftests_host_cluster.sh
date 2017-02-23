@@ -17,7 +17,8 @@ HOST_TEST_CASES="test_host_add_initiator \
                     test_move_non_clustered_discovered_host_to_cluster \
                     test_move_clustered_discovered_host_to_cluster \
                     test_vcenter_event \
-                    test_host_remove_initiator_event"
+                    test_host_remove_initiator_event \
+                    test_host_vplex_reuse_exportmask"
 
 get_host_cluster() {
     tenant_arg=$1
@@ -2317,5 +2318,208 @@ test_vblock_add_bare_metal_host() {
 
     run vblockcatalog addbaremetalhost $TENANT $VBLOCK_CLUSTER_NAME $VBLOCK_BOOT_VOL_SIZE $VBLOCK_HOST_NAME $PROJECT $NH $VPOOL_BASE $VBLOCK_COMPUTE_VIRTUAL_POOL_NAME $VBLOCK_BOOT_VOL_HLU $VBLOCK_CATALOG_ADD__BARE_METAL_HOSTS_TO_CLUSTER
     # need to verify if cluster, host and boot volume was created.
+}
+
+# Test Host VPlex Reuse Export Mask
+test_host_vplex_reuse_exportmask() {
+    test_name="test_host_vplex_reuse_exportmask"
+    echot "Test test_host_vplex_reuse_exportmask start..."
+    
+    if [ "${SS}" != "vplex" ]; then
+        echot "Setup is not configured for VPlex, skipping ${test_name}"
+        continue;
+    fi
+        
+    common_failure_injections="failure_004_final_step_in_workflow_complete"
+
+    #failure_injections="${HAPPY_PATH_TEST_INJECTION} ${common_failure_injections}"
+    failure_injections="failure_003_late_in_add_initiator_to_mask"
+
+    # Placeholder when a specific failure case is being worked...
+    #failure_injections="failure_026_host_cluster_ComputeSystemControllerImpl.updateExportGroup_before_update"    
+    
+    random_number=${RANDOM}
+        
+    # Create two volumes
+    volume1=${VOLNAME}-1-${random_number}
+    volume2=${VOLNAME}-2-${random_number}    
+    runcmd volume create ${volume1} ${PROJECT} ${NH} ${VPOOL_BASE} 1GB
+    runcmd volume create ${volume2} ${PROJECT} ${NH3} ${VPOOL_BASE}_varray3 1GB
+    
+    #column_family=("Volume ExportGroup ExportMask")
+    column_family=("ExportMask")
+    
+    FC_ZONE_B=VSAN_12
+    
+    snap_db 1 "${column_family[@]}"
+    
+    for failure in ${failure_injections}
+    do
+        secho "Running ${test_name} with failure scenario: ${failure}..."
+        
+        random_number=${RANDOM}
+        TEST_OUTPUT_FILE=test_output_${RANDOM}.log
+        reset_counts       
+        mkdir -p results/${random_number}
+        host1=fakehost1-${random_number}
+        #host2=fakehost2-${random_number}
+        #cluster1=fakecluster1-${random_number}
+        exportgroup1=exportgroup1-${random_number}
+        exportgroup2=exportgroup2-${random_number}
+        
+        # Snap DB
+        
+            
+        # Create new random WWNs for nodes and initiators
+        node1=`randwwn 20 C1`
+        node2=`randwwn 20 C2`
+        node3=`randwwn 20 C3`
+        node4=`randwwn 20 C4`
+        init1=`randwwn 10 C1`
+        init2=`randwwn 10 C2`
+        init3=`randwwn 10 C3`
+        init4=`randwwn 10 C4`
+        
+        # Add initator WWNs to the network
+        run transportzone add $NH/${FC_ZONE_A} ${init1}
+        run transportzone add $NH/${FC_ZONE_A} ${init2}
+        run transportzone add $NH3/${FC_ZONE_B} ${init3}
+        run transportzone add $NH3/${FC_ZONE_B} ${init4}
+        
+        # Create fake cluster
+        #runcmd cluster create ${cluster1} $TENANT
+            
+        # Create fake hosts and add them to cluster
+        runcmd hosts create $host1 $TENANT Other ${host1}.lss.emc.com --port 1
+        #runcmd hosts create $host1 $TENANT Other ${host1}.lss.emc.com --port 1 --cluster ${TENANT}/${cluster1}
+        #runcmd hosts create $host2 $TENANT Other ${host2}.lss.emc.com --port 1 --cluster ${TENANT}/${cluster1}       
+        
+        # Create new initators and add to fakehost
+        runcmd initiator create $host1 FC ${init1} --node ${node1}
+        runcmd initiator create $host1 FC ${init2} --node ${node2}
+        runcmd initiator create $host1 FC ${init3} --node ${node3}
+        runcmd initiator create $host1 FC ${init4} --node ${node4}
+        #runcmd initiator create $host2 FC ${init3} --node ${node3}
+        #runcmd initiator create $host2 FC ${init4} --node ${node4}
+    
+        # Zzzzzz
+        sleep 2
+        
+        # Export the volume to an exlusive (aka Host) export for host1
+        runcmd export_group create ${PROJECT} ${exportgroup1} ${NH} --type Host --volspec ${PROJECT}/${volume1} --hosts "${host1}"
+        # Export the volume to a shared (aka Cluster) export for cluster1   
+        #runcmd export_group create ${PROJECT} ${exportgroup2} $NH --type Cluster --volspec ${PROJECT}/${volume2} --clusters ${TENANT}/${cluster1}        
+                                
+        # List of all export groups being used
+        exportgroups="${PROJECT}/${exportgroup1}"        
+        
+        
+
+        snap_db 2 "${column_family[@]}"
+        
+        for eg in ${exportgroups}
+        do
+            # Double check export group to ensure the hosts and initiators are present
+            foundinit1=`export_group show ${eg} | grep ${init1}`
+            foundinit2=`export_group show ${eg} | grep ${init2}`            
+            foundhost1=`export_group show ${eg} | grep ${host1}`            
+            
+            if [[ "${foundinit1}" = ""  || "${foundinit2}" = "" || "${foundhost1}" = "" ]]; then
+                # Fail, hosts and initiators should have been added to the export group
+                echo "+++ FAIL - Some hosts and host initiators were not found on ${eg}...fail."
+                # Report results
+                incr_fail_count
+                report_results ${test_name} ${failure}
+                continue;
+            else
+                echo "+++ SUCCESS - All hosts and host initiators present on ${eg}"   
+            fi
+        done
+
+        if [ ${failure} != ${HAPPY_PATH_TEST_INJECTION} ]; then
+            # Turn on failure at a specific point
+            set_artificial_failure ${failure}
+                    
+            fail export_group create ${PROJECT} ${exportgroup2} ${NH3} --type Host --volspec ${PROJECT}/${volume2} --hosts "${host1}"
+            
+            # Verify injected failures were hit
+            verify_failures ${failure}
+            
+            # Let the async jobs calm down
+            sleep 5
+            
+            snap_db 3 "${column_family[@]}"
+            
+            # Validate DB
+            validate_db 2 3 "${column_family[@]}"
+        fi
+ 
+        # Zzzzzz
+        secho "Sleeping for 5..."
+        sleep 5
+        
+        # Run the command with no injected failure
+        set_artificial_failure none 
+         
+        #runcmd export_group update ${PROJECT}/${exportgroup1} --addVols ${PROJECT}/${volume2}
+        runcmd export_group create ${PROJECT} ${exportgroup2} ${NH3} --type Host --volspec ${PROJECT}/${volume2} --hosts "${host1}"
+        
+        # Zzzzzz
+        secho "Sleeping for 5..."
+        sleep 5
+        
+        
+
+#        for eg in ${exportgroups}
+#        do
+#            # Ensure that initiator 1 has been removed
+#            foundinit1=`export_group show ${eg} | grep ${init1}`            
+#            
+#            if [[ "${foundinit1}" != "" ]]; then
+#                # Fail, initiator 1 should be removed
+#                echo "+++ FAIL - Expected host initiators were not removed from the export group ${eg}."
+#                incr_fail_count
+#                report_results ${test_name} ${failure}
+#                continue;
+#            else
+#                echo "+++ SUCCESS - Expected host initiators removed from export group ${eg}." 
+#            fi                                     
+#        done
+            
+        # Cleanup export groups  
+        runcmd export_group update ${PROJECT}/${exportgroup1} --remVols ${PROJECT}/${volume1}
+        runcmd export_group update ${PROJECT}/${exportgroup2} --remVols ${PROJECT}/${volume2}
+        
+        # Cleanup everything else
+        # runcmd cluster delete ${TENANT}/${cluster1}
+        runcmd initiator delete ${host1}/${init1}        
+        runcmd initiator delete ${host1}/${init2}
+        #runcmd initiator delete ${host2}/${init3}
+        #runcmd initiator delete ${host2}/${init4}
+        runcmd hosts delete ${host1}
+        #runcmd hosts delete ${host2}
+        
+        # Snap DB
+        #snap_db 2 "${column_family[@]}"
+        
+        # Validate DB
+        #validate_db 1 2 "${column_family[@]}"
+
+        # Snap DB
+        snap_db 4 "${column_family[@]}"
+        
+        # Validate DB
+        validate_db 1 4 "${column_family[@]}"
+
+        # Report results
+        report_results ${test_name} ${failure}
+        
+        # Add a break in the output
+        echo " "
+    done
+    
+    # Cleanup volumes
+    runcmd volume delete ${PROJECT}/${volume1} --wait
+    runcmd volume delete ${PROJECT}/${volume2} --wait
 }
 

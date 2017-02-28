@@ -58,6 +58,7 @@ import com.emc.storageos.blockorchestrationcontroller.VolumeDescriptor;
 import com.emc.storageos.computecontroller.ComputeController;
 import com.emc.storageos.computesystemcontroller.ComputeSystemController;
 import com.emc.storageos.computesystemcontroller.impl.ComputeSystemHelper;
+import com.emc.storageos.computesystemcontroller.impl.HostCompleter;
 import com.emc.storageos.db.client.DbClient;
 import com.emc.storageos.db.client.URIUtil;
 import com.emc.storageos.db.client.constraint.ContainmentConstraint;
@@ -105,6 +106,7 @@ import com.emc.storageos.db.client.util.NullColumnValueGetter;
 import com.emc.storageos.db.client.util.WWNUtility;
 import com.emc.storageos.db.client.util.iSCSIUtility;
 import com.emc.storageos.db.exceptions.DatabaseException;
+import com.emc.storageos.exceptions.DeviceControllerException;
 import com.emc.storageos.imageservercontroller.ImageServerController;
 import com.emc.storageos.imageservercontroller.impl.ImageServerUtils;
 import com.emc.storageos.model.BulkIdParam;
@@ -144,6 +146,7 @@ import com.emc.storageos.security.authorization.CheckPermission;
 import com.emc.storageos.security.authorization.DefaultPermissions;
 import com.emc.storageos.security.authorization.Role;
 import com.emc.storageos.services.OperationTypeEnum;
+import com.emc.storageos.svcs.errorhandling.model.ServiceError;
 import com.emc.storageos.svcs.errorhandling.resources.APIException;
 import com.emc.storageos.svcs.errorhandling.resources.BadRequestException;
 import com.emc.storageos.svcs.errorhandling.resources.InternalException;
@@ -329,10 +332,19 @@ public class HostService extends TaskResourceService {
                 // Cluster hasn't changed but we should add host to the shared exports for this cluster
                 controller.addHostsToExport(Arrays.asList(host.getId()), newClusterURI, taskId, oldClusterURI, false);
             } else {
-                updateTaskStatus = true;
-                ComputeSystemHelper.updateHostAndInitiatorClusterReferences(_dbClient, newClusterURI, host.getId());
+                try {
+                    updateTaskStatus = true;
+                    ComputeSystemHelper.updateHostAndInitiatorClusterReferences(_dbClient, newClusterURI, host.getId());
+                } catch (Exception e) {                    
+                    HostCompleter completer = new HostCompleter(NullColumnValueGetter.getNullURI(), host.getId(), false, taskId);
+                    String message = "Encountered an exception during ComputeSystemHelper.updateHostAndInitiatorClusterReferences...";
+                    _log.error(message, e);
+                    ServiceError serviceError = DeviceControllerException.errors.jobFailed(e);
+                    completer.error(_dbClient, serviceError);
+                }
             }
         }
+        
         /*
          * It is not merely enough to make the Host -> (Boot)Volume association
          * by setting the boot volume id on the Host. A volume is truly a boot

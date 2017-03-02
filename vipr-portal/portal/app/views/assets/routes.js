@@ -83,6 +83,9 @@ var routes = {
 
   AuditLog_list: #{jsAction @infra.AuditLog.list() /},
   AuditLog_download: #{jsAction @infra.AuditLog.download() /},
+  
+  Order_list: #{jsAction @catalog.Orders.list() /},
+  Order_allOrders: #{jsAction @catalog.Orders.allOrders() /},
 
   FileSystems_fileSystemExportsJson: #{jsAction @resources.FileSystems.fileSystemExportsJson() /},
   FileSystems_save: #{jsAction @resources.FileSystems.save() /},
@@ -106,6 +109,6 @@ var routes = {
   VirtualArrays_pools: #{jsAction @VirtualArrays.storagePoolsJson(':id') /},
   Networks_getDisconnectedStorage: #{jsAction @arrays.Networks.getDisconnectedStorage(':ids') /},
   VirtualArrays_getDisconnectedStorage: #{jsAction @VirtualArrays.getDisconnectedStorage(':ids') /},
-  VirtualPools_checkDisconnectedStoragePools: #{jsAction @arrays.BlockVirtualPools.checkDisconnectedStoragePools(':ids') /}
-
+  VirtualPools_checkDisconnectedStoragePools: #{jsAction @arrays.BlockVirtualPools.checkDisconnectedStoragePools(':ids') /},
+  FileProtectionPolicy_details: #{jsAction @arrays.FileProtectionPolicies.details(':id') /}
 };

@@ -196,8 +196,6 @@ public class SmisStorageDevice extends DefaultBlockStorageDevice {
                 "Create Volume Start - Array:%s, Pool:%s", storageSystem.getSerialNumber(),
                 storagePool.getNativeGuid()));
         StorageSystem forProvider = _helper.getStorageSystemForProvider(storageSystem, volumes.get(0));
-        // volumeGroupObjectPath is required for VMAX3
-        CIMObjectPath volumeGroupObjectPath = _helper.getVolumeGroupPath(forProvider, storageSystem, volumes.get(0), storagePool);
         List<String> volumeLabels = new ArrayList<>();
 
         for (Volume volume : volumes) {
@@ -245,10 +243,9 @@ public class SmisStorageDevice extends DefaultBlockStorageDevice {
                     poolSetting = _smisStorageDevicePreProcessor.createStoragePoolSetting(
                             storageSystem, storagePool, thinVolumePreAllocationSize);
                 }
-                if (storageSystem.checkIfVmax3() && volumeGroupObjectPath != null) {
+                if (storageSystem.checkIfVmax3()) {
                     inArgs = _helper.getCreateVolumesInputArguments(storageSystem, storagePool, volumeLabels,
-                            capacity, volumes.size(), isThinlyProvisioned, true, volumeGroupObjectPath,
-                            (null != thinVolumePreAllocationSize));
+                            capacity, volumes.size(), isThinlyProvisioned, true, (null != thinVolumePreAllocationSize));
                 } else {
                     inArgs = _helper.getCreateVolumesInputArguments(storageSystem, storagePool, volumeLabels,
                             capacity, volumes.size(), isThinlyProvisioned, poolSetting, true);

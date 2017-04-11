@@ -1262,9 +1262,8 @@ public class SmisCommandHelper implements SmisConstants {
     }
 
     public CIMArgument[] getCreateVolumesInputArguments(StorageSystem storageDevice, StoragePool pool,
-            List<String> labels, Long capacity, int count,
-            boolean isThinlyProvisioned, boolean isBoundToPool,
-            CIMObjectPath volumeGroupPath, boolean fullyAllocated) {
+            List<String> labels, Long capacity, int count, boolean isThinlyProvisioned,
+            boolean isBoundToPool, boolean fullyAllocated) {
 
         List<CIMArgument> list = getCreateVolumesInputArgumentsasList(storageDevice, pool, labels, capacity, count,
                 isThinlyProvisioned);
@@ -1277,8 +1276,6 @@ public class SmisCommandHelper implements SmisConstants {
             }
         }
         if (storageDevice.checkIfVmax3()) {
-            list.add(_cimArgument.referenceArray(CP_EMC_COLLECTIONS, toMultiElementArray(count, volumeGroupPath)));
-
             // set volumeType for fully-thin or fully-allocated
             int volumeType = fullyAllocated ? STORAGE_VOLUME_FULLY_ALLOCATED : STORAGE_VOLUME_TYPE_THIN;
             if (storageDevice.getUsingSmis80()) {

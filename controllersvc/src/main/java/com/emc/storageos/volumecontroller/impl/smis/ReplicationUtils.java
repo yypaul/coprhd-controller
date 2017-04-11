@@ -524,10 +524,9 @@ public class ReplicationUtils {
             CIMObjectPath configSvcPath = cimPath.getConfigSvcPath(storageSystem);
             CIMArgument[] inArgs = null;
             if (storageSystem.checkIfVmax3()) {
-                CIMObjectPath volumeGroupPath = helper.getVolumeGroupPath(storageSystem, storageSystem, sourceVolume, storagePool);
                 CIMObjectPath poolPath = helper.getPoolPath(storageSystem, storagePool);
                 inArgs = helper.getCreateVolumesBasedOnVolumeGroupInputArguments(storageSystem, poolPath,
-                        volumeGroupPath, label, count, capacity);
+                        label, count, capacity);
             } else {
                 inArgs = helper.getCreateVolumesInputArguments(storageSystem, storagePool, label, capacity, count, isThinlyProvisioned,
                         null, true);

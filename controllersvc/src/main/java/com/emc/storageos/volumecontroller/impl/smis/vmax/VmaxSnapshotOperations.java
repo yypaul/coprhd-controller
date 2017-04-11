@@ -316,10 +316,9 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
             CIMArgument[] inArgs = null;
             CIMArgument[] outArgs = new CIMArgument[5];
             if (storage.checkIfVmax3()) {
-                CIMObjectPath volumeGroupPath = _helper.getVolumeGroupPath(storage, storage, volume, null);
                 // COP-17240: For VMAX3, we will derive the target volumes from the source volumes SRP Pool
                 CIMObjectPath poolPath = _helper.getVolumeStoragePoolPath(storage, volume);
-                targetDeviceIds = createTargetDevices(storage, poolPath, volumeGroupPath, null, "SingleSnapshot", snapLabelToUse,
+                targetDeviceIds = createTargetDevices(storage, poolPath, null, "SingleSnapshot", snapLabelToUse,
                         createInactive, 1, volume.getCapacity(), taskCompleter);
                 CIMInstance replicaSettingData = _helper.getReplicationSettingData(storage, targetDeviceIds.get(0), false);
                 inArgs = _helper.getCreateElementReplicaSnapInputArgumentsWithTargetAndSetting(storage, volume, targetDeviceIds.get(0),
@@ -424,10 +423,9 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
                     final List<Volume> volumes = entry.getValue();
                     final Volume volume = volumes.get(0);
                     final URI poolId = volume.getPool();
-                    CIMObjectPath volumeGroupPath = _helper.getVolumeGroupPath(storage, storage, volume, null);
 
                     // Create target devices based on the array model
-                    final List<String> newDeviceIds = kickOffTargetDevicesCreation(storage, volumeGroupPath,
+                    final List<String> newDeviceIds = kickOffTargetDevicesCreation(storage,
                             sourceGroupName, snapLabelToUse, createInactive, thinProvisioning, volumes.size(), poolId,
                             volume.getCapacity(), taskCompleter);
 
@@ -761,14 +759,13 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
      * @param taskCompleter - Completer object used for task status update @return
      * @throws DeviceControllerException
      */
-    private List<String> kickOffTargetDevicesCreation(StorageSystem storage, CIMObjectPath volumeGroupPath, String sourceGroupName,
+    private List<String> kickOffTargetDevicesCreation(StorageSystem storage, String sourceGroupName,
             String label, Boolean createInactive, boolean thinlyProvisioned, int count,
-            URI storagePoolUri, long capacity,
-            TaskCompleter taskCompleter) throws Exception {
+            URI storagePoolUri, long capacity, TaskCompleter taskCompleter) throws Exception {
         if (storage.checkIfVmax3()) {
             StoragePool storagePool = _dbClient.queryObject(StoragePool.class, storagePoolUri);
             CIMObjectPath poolPath = _helper.getPoolPath(storage, storagePool);
-            return createTargetDevices(storage, poolPath, volumeGroupPath, null, sourceGroupName, null, createInactive,
+            return createTargetDevices(storage, poolPath, null, sourceGroupName, null, createInactive,
                     count, capacity, taskCompleter);
         } else if (thinlyProvisioned) {
             return ReplicationUtils.createTargetDevices(storage, sourceGroupName, label, createInactive, count, storagePoolUri,
@@ -785,7 +782,7 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
                 throw DeviceControllerExceptions.smis.unableToFindStoragePoolSetting();
             }
 
-            return createTargetDevices(storage, poolPath, null, storageSetting, sourceGroupName, label, createInactive,
+            return createTargetDevices(storage, poolPath, storageSetting, sourceGroupName, label, createInactive,
                     count, capacity, taskCompleter);
         }
     }
@@ -932,7 +929,7 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
      * 
      * @return - List of native Ids
      */
-    private List<String> createTargetDevices(StorageSystem storage, CIMObjectPath poolPath, CIMObjectPath volumeGroupPath,
+    private List<String> createTargetDevices(StorageSystem storage, CIMObjectPath poolPath,
             CIMInstance storageSetting, String sourceGroupName,
             String label, Boolean createInactive, int count, long capacity,
             TaskCompleter taskCompleter) throws DeviceControllerException {
@@ -945,8 +942,7 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
 
             CIMArgument[] inArgs = null;
             if (storage.checkIfVmax3()) {
-                inArgs = _helper.getCreateVolumesBasedOnVolumeGroupInputArguments(storage, poolPath, volumeGroupPath, label, count,
-                        capacity);
+                inArgs = _helper.getCreateVolumesBasedOnVolumeGroupInputArguments(storage, poolPath, label, count, capacity);
             } else {
                 inArgs = _helper.getCreateVolumesBasedOnSettingInputArguments(storage, poolPath, storageSetting, label, count, capacity);
             }
@@ -1579,14 +1575,13 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
                     if (URIUtil.isType(sourceObjURI, Volume.class)) {
                         // Provision the new target volume.
                         Volume sourceVolume = (Volume) sourceObj;
-                        CIMObjectPath volumeGroupPath = _helper.getVolumeGroupPath(system, system, sourceVolume, null);
                         // COP-17240: For VMAX3, we will derive the target volumes from the source volumes SRP Pool
                         CIMObjectPath poolPath = _helper.getVolumeStoragePoolPath(system, sourceVolume);
                         TenantOrg tenant = _dbClient.queryObject(TenantOrg.class, sourceVolume.getTenant().getURI());
                         String tenantName = tenant.getLabel();
                         String label = _nameGenerator.generate(tenantName, snapshot.getLabel(), snapshotURI.toString(), '-',
                                 SmisConstants.MAX_SMI80_SNAPSHOT_NAME_LENGTH);
-                        List<String> targetDeviceIds = createTargetDevices(system, poolPath, volumeGroupPath, null, "SingleSnapshot",
+                        List<String> targetDeviceIds = createTargetDevices(system, poolPath, null, "SingleSnapshot",
                                 label, Boolean.FALSE, 1, sourceVolume.getCapacity(), completer);
                         if (targetDeviceIds.isEmpty()) {
                             throw DeviceControllerException.exceptions.createTargetForSnapshotSessionFailed(snapSessionURI.toString());
@@ -1676,10 +1671,8 @@ public class VmaxSnapshotOperations extends AbstractSnapshotOperations {
                     final Volume volume = volumes.get(0);
                     final URI poolId = volume.getPool();
 
-                    // get respective group path for volume storage pool
-                    CIMObjectPath volumeGroupPath = _helper.getVolumeGroupPath(system, system, volume, null);
                     // Create target devices based on the array model
-                    final List<String> newDeviceIds = kickOffTargetDevicesCreation(system, volumeGroupPath,
+                    final List<String> newDeviceIds = kickOffTargetDevicesCreation(system,
                             sourceGroupName, null, false, true, volumes.size(), poolId,
                             volume.getCapacity(), completer);
 

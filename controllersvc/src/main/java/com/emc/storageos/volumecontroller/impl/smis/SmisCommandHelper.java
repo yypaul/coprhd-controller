@@ -1169,39 +1169,37 @@ public class SmisCommandHelper implements SmisConstants {
 
     public CIMArgument[] getCreateVolumesBasedOnVolumeGroupInputArguments(
             StorageSystem storage, CIMObjectPath poolPath,
-            CIMObjectPath volumeGroupPath, String label, int count, long capacity) {
+            String label, int count, long capacity) {
         if (storage.getUsingSmis80() != null && storage.getUsingSmis80()) {
-            return getCreateVolumesBasedOnVolumeGroupInputArguments80(storage, poolPath, volumeGroupPath, label, count,
+            return getCreateVolumesBasedOnVolumeGroupInputArguments80(storage, poolPath, label, count,
                     capacity);
         } else {
-            return getCreateVolumesBasedOnVolumeGroupInputArguments40(storage, poolPath, volumeGroupPath, label, count,
+            return getCreateVolumesBasedOnVolumeGroupInputArguments40(storage, poolPath, label, count,
                     capacity);
         }
     }
 
     public CIMArgument[] getCreateVolumesBasedOnVolumeGroupInputArguments40(
             StorageSystem storage, CIMObjectPath poolPath,
-            CIMObjectPath volumeGroupPath, String label, int count, long capacity) {
+            String label, int count, long capacity) {
         if (label != null) {
             return new CIMArgument[] {
                     _cimArgument.uint16(CP_ELEMENT_TYPE, STORAGE_VOLUME_VALUE),
                     _cimArgument.string(CP_ELEMENT_NAME, label),
                     _cimArgument.uint32(CP_EMC_NUMBER_OF_DEVICES, count),
                     _cimArgument.uint64(CP_SIZE, capacity),
-                    _cimArgument.reference(CP_IN_POOL, poolPath),
-                    _cimArgument.referenceArray(CP_EMC_COLLECTIONS, toMultiElementArray(count, volumeGroupPath)) };
+                    _cimArgument.reference(CP_IN_POOL, poolPath) };
         }
         return new CIMArgument[] {
                 _cimArgument.uint16(CP_ELEMENT_TYPE, STORAGE_VOLUME_VALUE),
                 _cimArgument.uint32(CP_EMC_NUMBER_OF_DEVICES, count),
                 _cimArgument.uint64(CP_SIZE, capacity),
-                _cimArgument.reference(CP_IN_POOL, poolPath),
-                _cimArgument.referenceArray(CP_EMC_COLLECTIONS, toMultiElementArray(count, volumeGroupPath)) };
+                _cimArgument.reference(CP_IN_POOL, poolPath) };
     }
 
     public CIMArgument[] getCreateVolumesBasedOnVolumeGroupInputArguments80(
             StorageSystem storage, CIMObjectPath poolPath,
-            CIMObjectPath volumeGroupPath, String label, int count, long capacity) {
+            String label, int count, long capacity) {
 
         List<CIMArgument> list = new ArrayList<>();
 
@@ -1213,7 +1211,6 @@ public class SmisCommandHelper implements SmisConstants {
                 toMultiElementArray(count, new UnsignedInteger64(Long.toString(capacity)))));
         list.add(_cimArgument.referenceArray(CP_IN_POOL,
                 toMultiElementArray(count, poolPath)));
-        list.add(_cimArgument.referenceArray(CP_EMC_COLLECTIONS, toMultiElementArray(count, volumeGroupPath)));
 
         if (label != null) {
             list.add(_cimArgument.stringArray(CP_ELEMENT_NAMES,

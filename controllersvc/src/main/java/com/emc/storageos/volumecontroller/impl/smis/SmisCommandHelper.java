@@ -5378,38 +5378,6 @@ public class SmisCommandHelper implements SmisConstants {
         };
     }
 
-    /*
-     * find/create storage group for VMAX V3
-     */
-    public CIMObjectPath getVolumeGroupPath(StorageSystem forProvider, StorageSystem storageSystem, Volume volume, StoragePool storagePool) {
-        CIMObjectPath volumeGrouptPath = null;
-        if (storageSystem.checkIfVmax3()) {
-            if (storagePool == null) {
-                storagePool = _dbClient.queryObject(StoragePool.class, volume.getPool());
-            }
-
-            String srp = storagePool.getPoolName();
-            // default values in case autoTierPolicy is not set then use NONE SLO for V3 AFA and Optimized SLO for V3
-            String slo = storageSystem.isV3AllFlashArray() ? Constants.NONE.toUpperCase() : Constants.OPTIMIZED_SLO;
-            String workload = Constants.NONE.toUpperCase();
-
-            URI policyURI = volume.getAutoTieringPolicyUri();
-            if (!NullColumnValueGetter.isNullURI(policyURI)) {
-                AutoTieringPolicy policy = _dbClient.queryObject(AutoTieringPolicy.class, policyURI);
-                slo = policy.getVmaxSLO();
-                workload = policy.getVmaxWorkload().toUpperCase();
-            }
-
-            // Try to find existing storage group.
-            volumeGrouptPath = getVolumeGroupBasedOnSLO(forProvider, storageSystem, slo, workload, srp);
-            if (volumeGrouptPath == null) {
-                // Create new storage group.
-                volumeGrouptPath = createVolumeGroupBasedOnSLO(forProvider, storageSystem, slo, workload, srp);
-            }
-        }
-        return volumeGrouptPath;
-    }
-
     /**
      * Removes volume from storage group
      *

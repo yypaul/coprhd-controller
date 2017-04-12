@@ -172,7 +172,6 @@ public class AbstractCloneOperations implements CloneOperations {
             TenantOrg tenantOrg = _dbClient.queryObject(TenantOrg.class, tenantUri);
             String cloneLabel = generateLabel(tenantOrg, cloneObj);
 
-            CIMObjectPath volumeGroupPath = _helper.getVolumeGroupPath(storageSystem, storageSystem, baseVolume, targetPool);
             CIMObjectPath sourceVolumePath = _cimPath.getBlockObjectPath(storageSystem, sourceObj);
             CIMObjectPath replicationSvcPath = _cimPath.getControllerReplicationSvcPath(storageSystem);
             CIMArgument[] inArgs = null;
@@ -193,7 +192,7 @@ public class AbstractCloneOperations implements CloneOperations {
                     repSettingData = _helper.getReplicationSettingDataInstanceForDesiredCopyMethod(storageSystem, DIFFERENTIAL_CLONE_VALUE,
                             true);
                 }
-                inArgs = _helper.getCloneInputArguments(cloneLabel, sourceVolumePath, volumeGroupPath, storageSystem,
+                inArgs = _helper.getCloneInputArguments(cloneLabel, sourceVolumePath, storageSystem,
                         targetPool, createInactive, repSettingData);
             } else if (storageSystem.deviceIsType(Type.vnxblock)) {
                 if (!isSourceSnap) {
@@ -203,10 +202,10 @@ public class AbstractCloneOperations implements CloneOperations {
                     inArgs = _helper.getCreateElementReplicaMirrorInputArgumentsWithReplicationSettingData(storageSystem, sourceObj, null,
                             false, repSettingData, cloneLabel);
                     cloneObj.setPool(baseVolume.getPool());
-                    _dbClient.persistObject(cloneObj);
+                    _dbClient.updateObject(cloneObj);
                 } else {
                     // when source is snapshot, create clone instead of mirror, since creating mirror from a snap is not supported.
-                    inArgs = _helper.getCloneInputArguments(cloneLabel, sourceVolumePath, volumeGroupPath, storageSystem,
+                    inArgs = _helper.getCloneInputArguments(cloneLabel, sourceVolumePath, storageSystem,
                             targetPool, createInactive, null);
                 }
             }
@@ -221,7 +220,7 @@ public class AbstractCloneOperations implements CloneOperations {
             Volume clone = _dbClient.queryObject(Volume.class, cloneVolume);
             if (clone != null) {
                 clone.setInactive(true);
-                _dbClient.persistObject(clone);
+                _dbClient.updateObject(clone);
             }
             String errorMsg = String.format(CREATE_ERROR_MSG_FORMAT, sourceVolume, cloneVolume);
             _log.error(errorMsg, e);

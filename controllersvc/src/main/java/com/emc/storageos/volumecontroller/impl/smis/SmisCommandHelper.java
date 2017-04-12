@@ -549,13 +549,12 @@ public class SmisCommandHelper implements SmisConstants {
     }
 
     public CIMArgument[] getCreateElementReplicaMirrorInputArguments(StorageSystem storageDevice, Volume volume,
-            StoragePool pool, boolean createInactive, String label, CIMObjectPath volumeGroupPath, CIMInstance replicaSettingData) {
+            StoragePool pool, boolean createInactive, String label, CIMInstance replicaSettingData) {
         CIMArgument[] baseArguments = getCreateElementReplicaInputArguments(storageDevice, volume, pool, createInactive,
                 label, MIRROR_VALUE);
 
         List<CIMArgument> args = new ArrayList<CIMArgument>();
         args.addAll(Arrays.asList(baseArguments));
-        args.add(_cimArgument.referenceArray(CP_COLLECTIONS, new CIMObjectPath[] { volumeGroupPath }));
         args.add(_cimArgument.object(CP_REPLICATION_SETTING_DATA, replicaSettingData));
 
         return args.toArray(new CIMArgument[] {});
@@ -4916,7 +4915,7 @@ public class SmisCommandHelper implements SmisConstants {
         };
     }
 
-    public CIMArgument[] getCloneInputArguments(String label, CIMObjectPath sourceVolumePath, CIMObjectPath volumeGroupPath,
+    public CIMArgument[] getCloneInputArguments(String label, CIMObjectPath sourceVolumePath,
             StorageSystem storageDevice, StoragePool pool, boolean createInactive,
             CIMInstance replicationSettingData) {
         int waitForCopyState = (createInactive) ? PREPARED_VALUE : ACTIVATE_VALUE;
@@ -4927,10 +4926,6 @@ public class SmisCommandHelper implements SmisConstants {
         args.add(_cimArgument.uint16(CP_WAIT_FOR_COPY_STATE, waitForCopyState));
         if (pool != null) {
             addTargetPoolToArgs(storageDevice, pool, args);
-        }
-
-        if (storageDevice.checkIfVmax3()) {
-            args.add(_cimArgument.referenceArray(SmisConstants.CP_COLLECTIONS, new CIMObjectPath[] { volumeGroupPath }));
         }
 
         if (replicationSettingData != null) {
